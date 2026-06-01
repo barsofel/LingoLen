@@ -3,8 +3,8 @@
     package="ofelya.barseghyan.lingolens">
 
     <uses-permission android:name="android.permission.INTERNET" />
+
     <application
-        android:theme="@style/Theme.Lingolens"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:exported="true"
@@ -13,27 +13,30 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        >   <!-- ← THIS IS THE FIX -->
-
-
+        android:theme="@style/Theme.Lingolens">
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+        <!-- ← THIS IS THE FIX -->
         <activity android:name=".SignupActivity" />
-        <activity android:name=".LoginActivity"
+        <activity
+            android:name=".LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER"
-                    />
+
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".PdfViewerActivity"
             android:exported="false" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

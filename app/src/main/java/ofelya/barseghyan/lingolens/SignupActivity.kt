@@ -6,13 +6,20 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 
 class SignupActivity : AppCompatActivity() {
+
+    private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_signup)
+
+        auth = FirebaseAuth.getInstance()
 
         val etName     = findViewById<EditText>(R.id.etName)
         val etEmail    = findViewById<EditText>(R.id.etEmail)
@@ -41,17 +48,56 @@ class SignupActivity : AppCompatActivity() {
                     Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
 
                 else -> {
-                    // ✅ Account created → go straight to MainActivity
-                    Toast.makeText(this, "Account created! Welcome, $name 🎉", Toast.LENGTH_SHORT).show()
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(this) { task ->
+                            if (task.isSuccessful) {
+                                val user = auth.currentUser
+
+                                val profileUpdates = UserProfileChangeRequest.Builder()
+                                    .setDisplayName(name)
+                                    .build()
+
+                                user?.updateProfile(profileUpdates)
+
+                                user?.sendEmailVerification()
+                                    ?.addOnCompleteListener { verifyTask ->
+                                        if (verifyTask.isSuccessful) {
+                                            auth.signOut()
+
+                                            AlertDialog.Builder(this)
+                                                .setTitle("Verify your email")
+                                                .setMessage(
+                                                    "A verification link has been sent to $email.\n\n" +
+                                                            "Please check your inbox (and spam folder) and click the link, " +
+                                                            "then come back to log in."
+                                                )
+                                                .setPositiveButton("Go to Login") { _, _ ->
+                                                    startActivity(Intent(this, LoginActivity::class.java))
+                                                    finish()
+                                                }
+                                                .setCancelable(false)
+                                                .show()
+                                        } else {
+                                            Toast.makeText(
+                                                this,
+                                                "Account created but failed to send verification email. " +
+                                                        "Try logging in and requesting a new one.",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                            auth.signOut()
+                                            startActivity(Intent(this, LoginActivity::class.java))
+                                            finish()
+                                        }
+                                    }
+                            } else {
+                                val errorMessage = task.exception?.localizedMessage ?: "Registration failed."
+                                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                            }
+                        }
                 }
             }
         }
 
-        // ✅ "Already have an account?" → go to LoginActivity
         tvGoLogin.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()

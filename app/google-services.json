@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "209145738677",
+    "project_id": "lingolens-82d1e",
+    "storage_bucket": "lingolens-82d1e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:209145738677:android:7e6e9f65a769cd95c595fc",
+        "android_client_info": {
+          "package_name": "ofelya.barseghyan.lingolens"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvMSU29x1UMCl7EUjOMDVI4Tq1TaLil2c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

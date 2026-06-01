@@ -9,7 +9,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var bottomNav: BottomNavigationView
 
-    // Keep fragment instances so state isn't lost when switching tabs
     private val libraryFragment = LibraryFragment()
     private val dictionaryFragment = DictionaryFragment()
     private val repeatFragment = RepeatFragment()
@@ -22,7 +21,6 @@ class MainActivity : AppCompatActivity() {
 
         bottomNav = findViewById(R.id.bottomNav)
 
-        // Add all fragments but only show the first one
         supportFragmentManager.beginTransaction().apply {
             add(R.id.fragmentContainer, repeatFragment, "repeat").hide(repeatFragment)
             add(R.id.fragmentContainer, dictionaryFragment, "dictionary").hide(dictionaryFragment)

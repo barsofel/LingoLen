@@ -1,128 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F8F7F4">
-
-    <!-- Header -->
+    android:background="#0F0F1A">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp"
+        android:padding="24dp"
         android:background="#1A1A2E">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="My Dictionary"
-            android:textSize="26sp"
+            android:textSize="28sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:fontFamily="serif"/>
+            android:textColor="#FFFFFF" />
 
         <TextView
             android:id="@+id/tvWordCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0 words saved"
-            android:textSize="13sp"
-            android:textColor="#A0A0C0"
-            android:layout_marginTop="4dp"/>
+            android:textSize="14sp"
+            android:textColor="#A0A0B0"
+            android:layout_marginTop="6dp" />
 
-        <Spinner
-            android:id="@+id/spinnerBook"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="#1E1E32"
-            android:popupBackground="#1E1E32"
-            android:textColor="#FFFFFF"
-            android:dropDownSelector="@drawable/nav_item_color"/>
+            android:layout_height="48dp"
+            android:layout_marginTop="20dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:background="@android:drawable/edit_text"
+            android:backgroundTint="#24243E">
 
-        <!-- Language selection row -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp"
-            android:gravity="center_vertical">
+            <Spinner
+                android:id="@+id/spinnerBook"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:popupBackground="#1A1A2E"
+                android:dropDownSelector="@drawable/nav_item_color" />
+        </FrameLayout>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="From"
-                    android:textSize="11sp"
-                    android:textColor="#A0A0C0"
-                    android:layout_marginBottom="4dp"/>
-
-                <Spinner
-                    android:id="@+id/spinnerSourceLang"
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:background="#1E1E32"
-                    android:popupBackground="#1E1E32"
-                    android:textColor="#FFFFFF"/>
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="→"
-                android:textSize="20sp"
-                android:textColor="#7C4DFF"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"/>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="To"
-                    android:textSize="11sp"
-                    android:textColor="#A0A0C0"
-                    android:layout_marginBottom="4dp"/>
-
-                <Spinner
-                    android:id="@+id/spinnerTargetLang"
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:background="#1E1E32"
-                    android:popupBackground="#1E1E32"
-                    android:textColor="#FFFFFF"/>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Search bar -->
         <EditText
             android:id="@+id/etSearch"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_search"
+            android:layout_height="52dp"
+            android:layout_marginTop="12dp"
+            android:background="@android:drawable/edit_text"
+            android:backgroundTint="#24243E"
             android:hint="Search words..."
-            android:textColorHint="#888"
-            android:textColor="#1A1A2E"
+            android:textColorHint="#707080"
+            android:textColor="#FFFFFF"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:inputType="text"
             android:imeOptions="actionSearch"
-            android:singleLine="true"/>
+            android:singleLine="true"
+            android:textSize="15sp" />
+
     </LinearLayout>
 
-    <!-- Empty state -->
     <LinearLayout
         android:id="@+id/layoutEmpty"
         android:layout_width="match_parent"
@@ -130,41 +73,41 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
+        android:padding="32dp"
         android:visibility="gone">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="📖"
-            android:textSize="56sp"/>
+            android:textSize="72sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No words yet"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#1A1A2E"
-            android:layout_marginTop="12dp"
-            android:fontFamily="serif"/>
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="16dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Tap words while reading to save them here"
             android:textSize="14sp"
-            android:textColor="#888"
-            android:layout_marginTop="6dp"
-            android:gravity="center"/>
+            android:textColor="#A0A0B0"
+            android:layout_marginTop="8dp"
+            android:gravity="center" />
+
     </LinearLayout>
 
-    <!-- Word list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvWords"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="12dp"
-        android:clipToPadding="false"/>
+        android:padding="16dp"
+        android:clipToPadding="false" />
 
 </LinearLayout>

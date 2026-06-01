@@ -1,6 +1,7 @@
 package ofelya.barseghyan.lingolens
 
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -23,6 +24,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -33,7 +37,8 @@ class PdfViewerActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var tvPdfTitle: TextView
     private lateinit var wordViewModel: WordViewModel
-
+    private lateinit var loadingLayout: View
+    private lateinit var tvStatus: TextView
     private var pdfRenderer: PdfRenderer? = null
     private var parcelFileDescriptor: ParcelFileDescriptor? = null
 
@@ -43,6 +48,7 @@ class PdfViewerActivity : AppCompatActivity() {
     private var totalPages = 0
     private val CHUNK_SIZE = 3
     private var currentBookPath = ""
+    private var isPdfReady = false
 
     inner class PdfBridge {
         @JavascriptInterface
@@ -52,6 +58,7 @@ class PdfViewerActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun onPageLongPress() {
+            if (!isPdfReady) return
             runOnUiThread { showAddWordDialog("") }
         }
     }
@@ -63,29 +70,31 @@ class PdfViewerActivity : AppCompatActivity() {
 
         wordViewModel = ViewModelProvider(this)[WordViewModel::class.java]
 
-        webView     = findViewById(R.id.webView)
-        progressBar = findViewById(R.id.progressBar)
-        tvPdfTitle  = findViewById(R.id.tvPdfTitle)
+        webView = findViewById(R.id.webView)
+        loadingLayout = findViewById(R.id.loadingLayout)
+        tvStatus = findViewById(R.id.tvStatus)
+        tvPdfTitle = findViewById(R.id.tvPdfTitle)
 
         findViewById<View>(R.id.btnAddWord).setOnClickListener {
-            showAddWordDialog("")
+            if (isPdfReady) showAddWordDialog("")
         }
 
         findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
 
-        webView.settings.javaScriptEnabled    = true
-        webView.settings.builtInZoomControls  = true
-        webView.settings.displayZoomControls  = false
-        webView.settings.useWideViewPort      = true
+        webView.settings.javaScriptEnabled = true
+        webView.settings.builtInZoomControls = true
+        webView.settings.displayZoomControls = false
+        webView.settings.useWideViewPort = true
         webView.settings.loadWithOverviewMode = true
         webView.webViewClient = WebViewClient()
         webView.addJavascriptInterface(PdfBridge(), "PdfBridge")
 
         val uriString = intent.getStringExtra("pdf_uri")
-        val filePath  = intent.getStringExtra("pdf_path")
+        val filePath = intent.getStringExtra("pdf_path")
+
         val uri = when {
             uriString != null -> Uri.parse(uriString)
-            filePath  != null -> Uri.fromFile(File(filePath))
+            filePath != null -> Uri.fromFile(File(filePath))
             else -> null
         }
 
@@ -95,49 +104,123 @@ class PdfViewerActivity : AppCompatActivity() {
             return
         }
 
-        currentBookPath = uri.lastPathSegment
-            ?.substringAfterLast('/')
-            ?.substringAfterLast(':') ?: "Unknown PDF"
+        currentBookPath = intent.getStringExtra("pdf_name")
+            ?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment
+                ?.substringAfterLast('/')
+                ?.substringAfterLast(':')
+                ?.removeSuffix(".pdf")
+                    ?: "Unknown PDF"
 
         tvPdfTitle.text = currentBookPath
         loadPdf(uri)
     }
 
     private fun showAddWordDialog(prefill: String) {
+        if (!isPdfReady) return
+
         val sheet = BottomSheetDialog(this, R.style.BottomSheetTheme)
-        val view  = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_word, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_word, null)
         sheet.setContentView(view)
 
         val etWord = view.findViewById<EditText>(R.id.etWord)
+        val btnTranslateSave = view.findViewById<Button>(R.id.btnSaveWord)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
+
         etWord.setText(prefill)
         etWord.setSelection(prefill.length)
 
-        view.findViewById<Button>(R.id.btnSaveWord).setOnClickListener {
+        btnTranslateSave.setOnClickListener {
             val word = etWord.text.toString().trim()
             if (word.isEmpty()) {
                 Toast.makeText(this, "Please type a word first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            wordViewModel.insert(
-                word = word,
-                translation = "",
-                bookPath = currentBookPath
+
+            val bookViewModel = ViewModelProvider(this)[BookViewModel::class.java]
+            val currentBook = bookViewModel.allBooks.value?.find { it.name == currentBookPath }
+            val targetLanguage = currentBook?.targetLanguageCode?.takeIf { it.isNotBlank() }
+                ?: getSelectedLanguageCode()
+                ?: return@setOnClickListener
+
+            val translator = Translation.getClient(
+                TranslatorOptions.Builder()
+                    .setSourceLanguage(TranslateLanguage.ENGLISH)
+                    .setTargetLanguage(targetLanguage)
+                    .build()
             )
-            Toast.makeText(this, "\"$word\" saved ✓", Toast.LENGTH_SHORT).show()
-            sheet.dismiss()
+
+            btnTranslateSave.isEnabled = false
+            btnTranslateSave.text = "Translating..."
+
+            translator.downloadModelIfNeeded()
+                .addOnSuccessListener {
+                    translator.translate(word)
+                        .addOnSuccessListener { translatedWord ->
+                            translator.close()
+
+                            if (translatedWord.trim().equals(word.trim(), ignoreCase = true)) {
+                                btnTranslateSave.isEnabled = true
+                                btnTranslateSave.text = "Translate & Save"
+                                etWord.error = "This word wasn't found in the dictionary"
+                                etWord.requestFocus()
+                                return@addOnSuccessListener        // sheet stays open, nothing saved
+                            }
+
+                            sheet.dismiss()
+                            showTranslationOverlay(word, translatedWord)
+                        }
+                        .addOnFailureListener {
+                            btnTranslateSave.isEnabled = true
+                            btnTranslateSave.text = "Translate & Save"
+                            Toast.makeText(this, "Translation failed", Toast.LENGTH_SHORT).show()
+                            translator.close()
+                        }
+                }
+                .addOnFailureListener {
+                    btnTranslateSave.isEnabled = true
+                    btnTranslateSave.text = "Translate & Save"
+                    Toast.makeText(this, "Model download failed", Toast.LENGTH_SHORT).show()
+                    translator.close()
+                }
         }
 
-        view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
-            sheet.dismiss()
-        }
-
+        btnCancel.setOnClickListener { sheet.dismiss() }
         sheet.show()
         etWord.requestFocus()
     }
 
+    private fun showTranslationOverlay(word: String, translation: String) {
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_translation_overlay, null)
+        dialog.setContentView(view)
+
+        view.findViewById<TextView>(R.id.tvWord).text = word
+        view.findViewById<TextView>(R.id.tvTranslation).text = translation
+
+
+        view.findViewById<Button>(R.id.btnSave).setOnClickListener {
+            wordViewModel.insert(
+                word = word,
+                translation = translation,
+                bookPath = currentBookPath
+            )
+            Toast.makeText(this, "\"$word\" → \"$translation\" saved", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun getSelectedLanguageCode(): String? {
+        return getSharedPreferences("app_prefs", MODE_PRIVATE)
+            .getString("selected_language_code", null)
+    }
+
     private fun loadPdf(uri: Uri) {
-        progressBar.visibility = View.VISIBLE
-        webView.visibility     = View.GONE
+        isPdfReady = false
+        loadingLayout.visibility = View.VISIBLE
+        webView.visibility = View.GONE
 
         scope.launch {
             try {
@@ -150,16 +233,16 @@ class PdfViewerActivity : AppCompatActivity() {
                 totalPages = pdfRenderer!!.pageCount
                 webView.loadDataWithBaseURL(null, buildShellHtml(totalPages), "text/html", "UTF-8", null)
 
-                progressBar.visibility = View.GONE
-                webView.visibility     = View.VISIBLE
+                loadingLayout.visibility = View.GONE
+                webView.visibility = View.VISIBLE
 
                 renderChunk(0, CHUNK_SIZE)
+                isPdfReady = true
 
             } catch (e: Exception) {
                 Log.e("PdfViewer", "Failed", e)
-                progressBar.visibility = View.GONE
-                Toast.makeText(this@PdfViewerActivity,
-                    "Could not open PDF: ${e.message}", Toast.LENGTH_LONG).show()
+                loadingLayout.visibility = View.GONE
+                Toast.makeText(this@PdfViewerActivity, "Could not open PDF: ${e.message}", Toast.LENGTH_LONG).show()
                 finish()
             }
         }
@@ -168,6 +251,7 @@ class PdfViewerActivity : AppCompatActivity() {
     private suspend fun renderChunk(fromIndex: Int, toIndexExclusive: Int) {
         val end = minOf(toIndexExclusive, totalPages)
         if (fromIndex >= end) return
+
         for (i in fromIndex until end) {
             val base64 = withContext(renderThread) { renderPageToBase64(i) }
             val js = """(function(){
@@ -181,17 +265,20 @@ class PdfViewerActivity : AppCompatActivity() {
     }
 
     private fun renderPageToBase64(index: Int): String {
-        val page   = pdfRenderer!!.openPage(index)
-        val scale  = 1080f / page.width
-        val width  = (page.width  * scale).toInt().coerceAtLeast(1)
+        val page = pdfRenderer!!.openPage(index)
+        val scale = 1080f / page.width
+        val width = (page.width * scale).toInt().coerceAtLeast(1)
         val height = (page.height * scale).toInt().coerceAtLeast(1)
+
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         Canvas(bitmap).drawColor(Color.WHITE)
         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
         page.close()
+
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
         bitmap.recycle()
+
         return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
     }
 
@@ -221,7 +308,7 @@ class PdfViewerActivity : AppCompatActivity() {
 <body>
 $placeholders
 <script>
-var total=$pageCount,loading=false;
+var total=$pageCount, loading=false;
 window.addEventListener('scroll',function(){
   if(loading)return;
   var phs=document.querySelectorAll('.ph');
@@ -231,31 +318,24 @@ window.addEventListener('scroll',function(){
     var rect=ph.getBoundingClientRect();
     if(rect.top<window.innerHeight*2){
       var idx=parseInt(ph.id.replace('ph-',''));
-      if(idx<total){
-        loading=true;
-        PdfBridge.requestMorePages(idx);
-        setTimeout(function(){loading=false;},800);
-      }
+      if(idx<total){loading=true;PdfBridge.requestMorePages(idx);setTimeout(function(){loading=false;},800);}
       break;
     }
   }
 });
-var longPressTimer;
+var longPressTimer, touchMoved=false;
 document.addEventListener('touchstart',function(e){
-  if(e.target.tagName==='IMG'){
-    longPressTimer=setTimeout(function(){
-      PdfBridge.onPageLongPress();
-    },600);
-  }
+  if(e.target.tagName==='IMG'){touchMoved=false;longPressTimer=setTimeout(function(){if(!touchMoved)PdfBridge.onPageLongPress();},600);}
 });
 document.addEventListener('touchend',function(){clearTimeout(longPressTimer);});
-document.addEventListener('touchmove',function(){clearTimeout(longPressTimer);});
+document.addEventListener('touchmove',function(){touchMoved=true;clearTimeout(longPressTimer);});
 </script>
 </body></html>"""
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        isPdfReady = false
         scope.cancel()
         renderThread.close()
         pdfRenderer?.close()

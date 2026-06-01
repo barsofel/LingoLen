@@ -24,11 +24,12 @@ class WordViewModel(application: Application) : AndroidViewModel(application) {
         distinctBooks = repository.distinctBooks
 
         filteredWords = _currentBookPath.switchMap { path ->
-            if (path.isNullOrBlank()) {
-                repository.allWords
-            } else {
-                repository.wordsByBook(path)
-            }
+            if (path.isNullOrBlank()) repository.allWords
+            else repository.wordsByBook(path)
+        }
+
+        viewModelScope.launch {
+            repository.syncFromFirestore()
         }
     }
 
@@ -36,29 +37,14 @@ class WordViewModel(application: Application) : AndroidViewModel(application) {
         if (repository.findByWordAndBook(word, bookPath) == null) {
             val date = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
             repository.insert(
-                WordEntry(
-                    word = word,
-                    translation = translation,
-                    dateSaved = date,
-                    bookPath = bookPath
-                )
+                WordEntry(word = word, translation = translation, dateSaved = date, bookPath = bookPath)
             )
         }
     }
 
-    fun update(word: WordEntry) = viewModelScope.launch {
-        repository.update(word)
-    }
-
-    fun setBookFilter(bookPath: String?) {
-        _currentBookPath.value = bookPath
-    }
-
-    fun delete(word: WordEntry) = viewModelScope.launch {
-        repository.delete(word)
-    }
-
-    fun deleteAll() = viewModelScope.launch {
-        repository.deleteAll()
-    }
+    fun update(word: WordEntry) = viewModelScope.launch { repository.update(word) }
+    fun updateAll(words: List<WordEntry>) = viewModelScope.launch { words.forEach { repository.update(it) } }
+    fun delete(word: WordEntry) = viewModelScope.launch { repository.delete(word) }
+    fun deleteAll() = viewModelScope.launch { repository.deleteAll() }
+    fun setBookFilter(bookPath: String?) { _currentBookPath.value = bookPath }
 }

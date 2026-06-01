@@ -5,7 +5,6 @@
     android:orientation="vertical"
     android:paddingBottom="12dp">
 
-    <!-- Page number label -->
     <TextView
         android:id="@+id/tvPageNumber"
         android:layout_width="wrap_content"
@@ -17,7 +16,6 @@
         android:textColor="#60FFFFFF"
         android:textSize="11sp" />
 
-    <!-- White card that holds the rendered page -->
     <androidx.cardview.widget.CardView
         xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
@@ -30,7 +28,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- Rendered PDF page bitmap -->
             <ImageView
                 android:id="@+id/ivPdfPage"
                 android:layout_width="match_parent"
@@ -40,7 +37,6 @@
                 android:background="#FFFFFF"
                 android:minHeight="200dp" />
 
-            <!-- Spinner shown while this individual page renders -->
             <ProgressBar
                 android:id="@+id/pageProgress"
                 android:layout_width="wrap_content"
